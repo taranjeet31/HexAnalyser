@@ -2,12 +2,11 @@
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Hex Analyser",
   "version": "1.0.0",
-  "identifier": "com.hexanalyser.app",
+  "identifier": "com.hexanalyser.hexanalyser",
   "build": {
     "frontendDist": "../tauri-frontend",
-    "devUrl": "http://localhost:1420",
-    "beforeDevCommand": "",
-    "beforeBuildCommand": "cp ../index.html ../tauri-frontend/index.html"
+    "beforeDevCommand": "cp index.html tauri-frontend/index.html",
+    "beforeBuildCommand": "cp index.html tauri-frontend/index.html"
   },
   "app": {
     "windows": [
