@@ -4,8 +4,9 @@ A lightweight, offline-first hex colour analyser with a gradient picker, live pr
 
 ![Version](https://img.shields.io/badge/version-1.0.0-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
-![Electron](https://img.shields.io/badge/electron-44.x-47848F?logo=electron&logoColor=white)
+![Tauri](https://img.shields.io/badge/tauri-2.x-FFC131?logo=tauri&logoColor=black) ![Electron](https://img.shields.io/badge/electron-44.x-47848F?logo=electron&logoColor=white)
 ![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey)
+![Size](https://img.shields.io/badge/bundle-9.5MB%20(Tauri)%20vs%20288MB%20(Electron)-success)
 
 
 ## ✨ Features
@@ -27,8 +28,9 @@ A lightweight, offline-first hex colour analyser with a gradient picker, live pr
 - Quick variations (10 tints via HSL lightness scale)
 - Harmonies: Complementary, Analogous, Triadic, Shades — click any swatch to load
 
-**Desktop**
-- Native Electron window (`main.js:6`), hiddenInset title bar on macOS, dark theme, app menu
+**Desktop — two builds, same UI**
+- **Tauri (lightweight, recommended)** — 9.5MB `.app` via native WebView, `src-tauri/tauri.conf.json:6` → `tauri-frontend/index.html`
+- **Electron (fallback)** — 288MB `.app` via bundled Chromium, `main.js:6` → `index.html:1`
 - Fully offline — no network requests
 
 ## 📸 Preview
@@ -56,59 +58,80 @@ open index.html
 
 No build step, no dependencies.
 
-### Option 2 — Desktop App (standalone, no browser)
+### Option 2 — Desktop App (Tauri, lightweight, 9.5MB)
 
-Requires Node.js 18+.
+Recommended — uses native WebView, not Chromium.
+
+Requires Node.js 18+ and Rust (`rustc --version`).
 
 ```bash
-# install dependencies
 npm install
 
-# run as desktop app
+# dev (hot reload)
+npm run tauri:dev
+
+# release build — 9.5MB .app
+npm run tauri:build
+# bypass DMG: npm run tauri -- build --bundles app
+# output: src-tauri/target/release/bundle/macos/Hex Analyser.app  (~9.5MB)
+open "src-tauri/target/release/bundle/macos/Hex Analyser.app"
+```
+
+> First launch: Right-click → Open → Open (ad-hoc signed).
+
+### Option 3 — Desktop App (Electron, 288MB fallback)
+
+```bash
 npm start
 # or: npm run dev
 ```
 
-The app window is defined in `main.js:6` (1120×840, vibrancy, `loadFile` at `main.js:24`).
-
-A pre-built binary is available after building:
+Window defined in `main.js:6` (1120×840, vibrancy, `loadFile` at `main.js:24`).
 
 ```bash
-open "dist/mac-arm64/Hex Analyser.app"   # macOS (Apple Silicon)
+open "dist/mac-arm64/Hex Analyser.app"   # 288MB Electron build
 ```
 
-> First launch on macOS (unsigned build): Right-click → **Open** → **Open** to bypass Gatekeeper. No Apple Developer ID required for local use.
-
 ## 📦 Building Distributables
+
+**Tauri (lightweight)**
+
+Configured in `src-tauri/tauri.conf.json:6`. `beforeBuildCommand` auto-copies `index.html` → `tauri-frontend/index.html`.
+
+```bash
+npm run tauri:build        # app + dmg (dmg needs create-dmg, optional)
+npm run tauri -- build --bundles app   # app only, no dmg (fastest, ~9.5MB)
+```
+
+**Electron (heavy, fallback)**
 
 Configured in `package.json:16` (`electron-builder`).
 
 ```bash
-# build for current platform (DMG + ZIP on macOS)
-npm run build:mac
-
-# build for all platforms (mac dmg/zip, win nsis/portable, linux AppImage)
-npm run build
-
-# unpacked dir only (fast, no installer)
-npm run pack   # → dist/mac-arm64/Hex Analyser.app
+npm run build:mac   # DMG + ZIP on macOS — 288MB unpacked
+npm run build       # all platforms
+npm run pack        # → dist/mac-arm64/Hex Analyser.app (unpacked)
 ```
 
-Outputs:
-- `dist/*.dmg` — macOS installer
-- `dist/*.zip` — macOS portable
-- `dist/*.exe` — Windows installer (when built on Windows)
-- `dist/*.AppImage` — Linux (when built on Linux)
+| Build | Unpacked .app | Installer | Engine |
+|---|---|---|---|
+| Tauri `src-tauri/target/release/bundle/macos/Hex Analyser.app` | **9.5MB** | ~10MB dmg/app.zip | Native WebView |
+| Electron `dist/mac-arm64/Hex Analyser.app` | 288MB | ~80-120MB dmg | Bundled Chromium |
 
 ## 🗂 Project Structure
 
 ```
 .
-├── index.html      # Single-file UI — gradient picker, conversions, styles, logic
-├── main.js         # Electron main process — BrowserWindow + menu
-├── preload.js      # Secure preload (contextIsolation, exposes isDesktop)
-├── package.json    # Scripts + electron-builder config
-└── dist/           # Built apps (generated, gitignored)
+├── index.html                  # Single-file UI — gradient picker, conversions, styles, logic
+├── tauri-frontend/index.html   # Copied from index.html for Tauri (beforeBuildCommand)
+├── main.js                     # Electron main process — BrowserWindow + menu
+├── preload.js                  # Secure preload (contextIsolation, exposes isDesktop)
+├── src-tauri/                  # Tauri/Rust wrapper (lightweight)
+│   ├── tauri.conf.json         # frontendDist, window size, bundle id
+│   ├── Cargo.toml
+│   └── src/{main,lib}.rs
+├── package.json                # Scripts + electron-builder + tauri
+└── dist/ / src-tauri/target/   # Built apps (gitignored)
 ```
 
 - `index.html:46` — CSS variables & layout
@@ -119,19 +142,22 @@ Outputs:
 ## 🛠 Tech Stack
 
 - **Vanilla HTML/CSS/JS** — no frameworks, no bundler
-- **Electron 44** — desktop wrapper
-- **electron-builder 26** — packaging
+- **Tauri 2 + Rust** — lightweight desktop wrapper (9.5MB, native WebView)
+- **Electron 44** — alternative wrapper (288MB, bundled Chromium)
+- **electron-builder 26 / tauri-bundler** — packaging
 
 No runtime dependencies in the browser version.
 
 ## 📋 Scripts
 
-| Script | Description |
-|---|---|
-| `npm start` / `npm run dev` | Launch Electron desktop app |
-| `npm run pack` | Build unpacked app dir (`dist/mac-arm64`) |
-| `npm run build:mac` | Build macOS DMG + ZIP |
-| `npm run build` | Build for mac, win, linux |
+| Script | Description | Size |
+|---|---|---|
+| `npm run tauri:dev` | Tauri dev (native WebView) | — |
+| `npm run tauri:build` | Tauri release .app + dmg | **9.5MB** |
+| `npm start` / `npm run dev` | Electron desktop app | 288MB |
+| `npm run pack` | Electron unpacked (`dist/mac-arm64`) | 288MB |
+| `npm run build:mac` | Electron DMG + ZIP | ~100MB dmg |
+| `npm run build` | Electron all platforms | — |
 
 ## 🎨 Supported Formats
 
@@ -173,4 +199,4 @@ MIT — see [LICENSE](LICENSE) if added. Free for personal and commercial use.
 
 ---
 
-Made with vanilla JS + Electron. If you find it useful, give it a ⭐ on GitHub.
+Made with vanilla JS + Tauri (lightweight) / Electron. If you find it useful, give it a ⭐ on GitHub.

@@ -9,7 +9,11 @@
     "dev": "electron .",
     "build": "electron-builder --mac --win --linux",
     "build:mac": "electron-builder --mac",
-    "pack": "electron-builder --dir"
+    "pack": "electron-builder --dir",
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build",
+    "tauri:build:debug": "tauri build --debug"
   },
   "author": "",
   "license": "MIT",
@@ -44,6 +48,7 @@
     }
   },
   "devDependencies": {
+    "@tauri-apps/cli": "^2.11.4",
     "electron": "^44.2.0",
     "electron-builder": "^26.15.3"
   }
