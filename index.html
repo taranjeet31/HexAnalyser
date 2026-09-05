@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hex Code Analyser — Color Picker & Converter</title>
+<style>
+  :root{
+    --bg:#0d1117;
+    --card:#161b22;
+    --card2:#1c2128;
+    --border:#30363d;
+    --text:#e6edf3;
+    --muted:#8b949e;
+    --accent:#58a6ff;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;font-family: -apple-system,BlinkMacSystemFont,'Segoe UI',Inter,Helvetica,Arial,sans-serif;}
+  body{background:var(--bg);color:var(--text);min-height:100vh;padding:24px;}
+  .wrap{max-width:1100px;margin:0 auto;}
+  header{margin-bottom:24px;display:flex;flex-wrap:wrap;gap:16px;align-items:center;justify-content:space-between;}
+  header h1{font-size:28px;letter-spacing:-0.5px;}
+  header p{color:var(--muted);font-size:14px;margin-top:4px;max-width:520px;line-height:1.5;}
+  .badge{font-size:11px;letter-spacing:0.8px;text-transform:uppercase;background:#1f6feb;color:white;padding:4px 8px;border-radius:999px;font-weight:700;}
+  .grid{display:grid;grid-template-columns:1.15fr 0.85fr;gap:20px;}
+  @media(max-width:860px){.grid{grid-template-columns:1fr;}}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:18px;}
+  .card h2{font-size:13px;letter-spacing:0.6px;text-transform:uppercase;color:var(--muted);margin-bottom:14px;display:flex;align-items:center;gap:8px;}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--accent);}
+  /* Picker area */
+  .picker-row{display:flex;gap:14px;}
+  .sv-box{position:relative;flex:1;height:320px;border-radius:12px;overflow:hidden;cursor:crosshair;border:1px solid var(--border);background:#ff0000;touch-action:none;}
+  /* layers */
+  .sv-white{position:absolute;inset:0;background:linear-gradient(to right,#fff,transparent);}
+  .sv-black{position:absolute;inset:0;background:linear-gradient(to top,#000,transparent);}
+  .sv-cursor{position:absolute;width:16px;height:16px;border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.6),0 2px 6px rgba(0,0,0,.4);border-radius:50%;transform:translate(-50%,-50%);pointer-events:none;}
+  .hue-col{display:flex;flex-direction:column;gap:10px;width:28px;}
+  .hue-slider{position:relative;width:100%;height:320px;border-radius:999px;overflow:hidden;border:1px solid var(--border);cursor:pointer;background:linear-gradient(to bottom,#f00 0%,#ff0 17%,#0f0 33%,#0ff 50%,#00f 67%,#f0f 83%,#f00 100%);touch-action:none;}
+  .hue-thumb{position:absolute;left:2px;right:2px;height:6px;background:#fff;border:1px solid rgba(0,0,0,.4);border-radius:999px;box-shadow:0 1px 4px rgba(0,0,0,.4);transform:translateY(-50%);pointer-events:none;}
+  .alpha-slider{position:relative;width:100%;height:16px;border-radius:999px;border:1px solid var(--border);overflow:hidden;cursor:pointer;background-image:linear-gradient(45deg,#2d333b 25%,transparent 25%), linear-gradient(-45deg,#2d333b 25%,transparent 25%), linear-gradient(45deg,transparent 75%,#2d333b 75%), linear-gradient(-45deg,transparent 75%,#2d333b 75%);background-size:12px 12px;background-position:0 0,0 6px,6px -6px,-6px 0px;}
+  .alpha-fill{position:absolute;inset:0;border-radius:999px;}
+  .alpha-thumb{position:absolute;top:50%;width:14px;height:14px;background:#fff;border:1px solid rgba(0,0,0,.5);border-radius:50%;transform:translate(-50%,-50%);pointer-events:none;box-shadow:0 1px 4px rgba(0,0,0,.4);}
+  .preview-row{display:flex;gap:12px;margin-top:14px;}
+  .big-preview{flex:1;height:84px;border-radius:12px;border:1px solid var(--border);position:relative;overflow:hidden;display:flex;align-items:flex-end;justify-content:space-between;padding:10px 12px;box-shadow:inset 0 1px 0 rgba(255,255,255,.06);}
+  .big-preview .checker{position:absolute;inset:0;background-image:linear-gradient(45deg,#2d333b 25%,transparent 25%), linear-gradient(-45deg,#2d333b 25%,transparent 25%), linear-gradient(45deg,transparent 75%,#2d333b 75%), linear-gradient(-45deg,transparent 75%,#2d333b 75%);background-size:16px 16px;background-position:0 0,0 8px,8px -8px,-8px 0px;z-index:0;}
+  .big-fill{position:absolute;inset:0;z-index:1;}
+  .preview-label{position:relative;z-index:2;display:flex;flex-direction:column;gap:2px;}
+  .preview-label strong{font-size:18px;letter-spacing:0.4px;text-shadow:0 1px 3px rgba(0,0,0,.6);}
+  .preview-label span{font-size:11px;opacity:.9;text-shadow:0 1px 2px rgba(0,0,0,.6);}
+  .preview-actions{position:relative;z-index:2;display:flex;gap:8px;}
+  .btn{appearance:none;border:1px solid var(--border);background:var(--card2);color:var(--text);padding:8px 12px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:.15s;}
+  .btn:hover{border-color:#8b949e;transform:translateY(-1px);}
+  .btn:active{transform:translateY(0);}
+  .btn-primary{background:#238636;border-color:#2ea043;color:white;}
+  .btn-primary:hover{background:#2ea043;}
+  /* Hex input */
+  .hex-input-wrap{display:flex;gap:10px;margin-top:14px;align-items:center;}
+  .hex-field{flex:1;display:flex;align-items:center;gap:8px;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:0 12px;height:44px;transition:.15s;}
+  .hex-field:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px rgba(88,166,255,.2);}
+  .hex-field span{color:var(--muted);font-weight:700;font-size:18px;}
+  .hex-field input{flex:1;background:transparent;border:0;outline:0;color:var(--text);font-size:18px;font-weight:700;letter-spacing:1px;text-transform:uppercase;}
+  .swatch{width:28px;height:28px;border-radius:8px;border:1px solid var(--border);flex-shrink:0;}
+  .hint{font-size:11px;color:var(--muted);margin-top:6px;}
+  .hint.error{color:#f85149;}
+  /* Formats */
+  .formats{display:flex;flex-direction:column;gap:10px;}
+  .format-row{display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:12px 12px;}
+  .format-row .left{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1;}
+  .format-row .label{font-size:11px;letter-spacing:0.6px;text-transform:uppercase;color:var(--muted);font-weight:700;}
+  .format-row .value{font-size:13px;font-weight:600;word-break:break-all;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;}
+  .copy{flex-shrink:0;appearance:none;border:1px solid var(--border);background:var(--bg);color:var(--text);width:36px;height:36px;border-radius:10px;display:grid;place-items:center;cursor:pointer;transition:.15s;}
+  .copy:hover{border-color:var(--accent);background:var(--card);}
+  .copy.copied{border-color:#2ea043;background:#238636;color:white;}
+  /* Palette */
+  .palette{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:14px;}
+  .palette button{height:42px;border-radius:10px;border:1px solid var(--border);cursor:pointer;position:relative;transition:transform .1s;}
+  .palette button:hover{transform:scale(1.04);z-index:1;}
+  .palette button span{position:absolute;bottom:4px;left:50%;transform:translateX(-50%);font-size:9px;background:rgba(0,0,0,.65);color:white;padding:2px 5px;border-radius:999px;opacity:0;transition:.15s;white-space:nowrap;}
+  .palette button:hover span{opacity:1;}
+  .section-gap{margin-top:18px;}
+  .harmonies{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .harmony-group{background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:10px;}
+  .harmony-group h4{font-size:11px;letter-spacing:0.6px;text-transform:uppercase;color:var(--muted);margin-bottom:8px;}
+  .harmony-swatches{display:flex;gap:6px;}
+  .harmony-swatches button{flex:1;height:36px;border-radius:8px;border:1px solid var(--border);cursor:pointer;}
+  .toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%) translateY(20px);background:#1f2937;color:white;padding:10px 14px;border-radius:999px;font-size:13px;font-weight:600;box-shadow:0 8px 24px rgba(0,0,0,.4);opacity:0;pointer-events:none;transition:.25s;z-index:99;}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <h1>Hex Analyser</h1><span class="badge">Gradient Picker + Converter</span>
+      </div>
+      <p>Pick any colour from the gradient, type a HEX code to preview it instantly, and copy it in every format you need — HEX, RGB, HSL, HSV, CMYK.</p>
+    </div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn" id="randomBtn">🎲 Random</button>
+      <button class="btn" id="pickBtn">👁 Pick from screen</button>
+    </div>
+  </header>
+
+  <div class="grid">
+    <!-- LEFT: Picker -->
+    <div class="card">
+      <h2><span class="dot"></span> Gradient picker</h2>
+      <div class="picker-row">
+        <div class="sv-box" id="svBox" aria-label="Saturation and brightness picker">
+          <div class="sv-white"></div>
+          <div class="sv-black"></div>
+          <div class="sv-cursor" id="svCursor"></div>
+        </div>
+        <div class="hue-col">
+          <div class="hue-slider" id="hueSlider"><div class="hue-thumb" id="hueThumb"></div></div>
+          <div class="alpha-slider" id="alphaSlider" title="Opacity"><div class="alpha-fill" id="alphaFill"></div><div class="alpha-thumb" id="alphaThumb"></div></div>
+        </div>
+      </div>
+
+      <div class="preview-row">
+        <div class="big-preview" id="bigPreview">
+          <div class="checker"></div>
+          <div class="big-fill" id="bigFill"></div>
+          <div class="preview-label">
+            <strong id="previewHex">#1F6FEB</strong>
+            <span id="previewRgb">rgb(31, 111, 235)</span>
+          </div>
+          <div class="preview-actions">
+            <button class="btn btn-primary" id="copyHexBtn">⧉ Copy HEX</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="hex-input-wrap">
+        <div class="hex-field" id="hexField">
+          <div class="swatch" id="inputSwatch"></div>
+          <span>#</span>
+          <input id="hexInput" maxlength="8" placeholder="1F6FEB" spellcheck="false" autocomplete="off">
+          <input type="color" id="nativeColor" value="#1f6feb" style="width:0;height:0;opacity:0;position:absolute;pointer-events:none;">
+          <button class="btn" id="nativeBtn" title="Open system picker">🎨</button>
+        </div>
+      </div>
+      <div class="hint" id="hexHint">Supports #RGB, #RRGGBB and #RRGGBBAA. Press Enter to apply.</div>
+
+      <div class="section-gap">
+        <h2><span class="dot" style="background:#f85149;"></span> Quick variations</h2>
+        <div class="palette" id="palette"></div>
+      </div>
+
+      <div class="section-gap harmonies">
+        <div class="harmony-group">
+          <h4>Complementary</h4>
+          <div class="harmony-swatches" id="compSwatches"></div>
+        </div>
+        <div class="harmony-group">
+          <h4>Analogous</h4>
+          <div class="harmony-swatches" id="analogSwatches"></div>
+        </div>
+        <div class="harmony-group">
+          <h4>Triadic</h4>
+          <div class="harmony-swatches" id="triadicSwatches"></div>
+        </div>
+        <div class="harmony-group">
+          <h4>Shades</h4>
+          <div class="harmony-swatches" id="shadeSwatches"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: Formats -->
+    <div class="card">
+      <h2><span class="dot" style="background:#a371f7;"></span> All code formats — click to copy</h2>
+      <div class="formats" id="formats"></div>
+
+      <div class="section-gap card" style="background:var(--bg);padding:14px;">
+        <h2 style="margin-bottom:8px;">How it works</h2>
+        <ul style="color:var(--muted);font-size:13px;line-height:1.6;padding-left:18px;">
+          <li><b style="color:var(--text);">Gradient box:</b> drag to change saturation (left→right) & brightness (bottom→top).</li>
+          <li><b style="color:var(--text);">Hue slider:</b> vertical rainbow changes base colour.</li>
+          <li><b style="color:var(--text);">Type HEX:</b> the big preview and all formats update live.</li>
+          <li><b style="color:var(--text);">Copy:</b> each row has a copy button — HEX, RGB, HSL, etc.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast">Copied!</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const svBox = $('#svBox'), svCursor = $('#svCursor');
+const hueSlider = $('#hueSlider'), hueThumb = $('#hueThumb');
+const alphaSlider = $('#alphaSlider'), alphaFill = $('#alphaFill'), alphaThumb = $('#alphaThumb');
+const bigFill = $('#bigFill'), previewHex = $('#previewHex'), previewRgb = $('#previewRgb');
+const hexInput = $('#hexInput'), hexField = $('#hexField'), hexHint = $('#hexHint'), inputSwatch = $('#inputSwatch');
+const formatsEl = $('#formats'), paletteEl = $('#palette');
+const toastEl = $('#toast');
+
+let hsv = {h:215, s:87, v:92}; // initial #1f6feb
+let alpha = 1;
+
+function hsvToRgb(h,s,v){
+  s/=100; v/=100;
+  let c=v*s, x=c*(1-Math.abs((h/60)%2-1)), m=v-c, r=0,g=0,b=0;
+  if(0<=h&&h<60){r=c;g=x;b=0}else if(60<=h&&h<120){r=x;g=c;b=0}else if(120<=h&&h<180){r=0;g=c;b=x}
+  else if(180<=h&&h<240){r=0;g=x;b=c}else if(240<=h&&h<300){r=x;g=0;b=c}else{r=c;g=0;b=x}
+  return {r:Math.round((r+m)*255), g:Math.round((g+m)*255), b:Math.round((b+m)*255)};
+}
+function rgbToHsv(r,g,b){
+  r/=255; g/=255; b/=255;
+  let max=Math.max(r,g,b), min=Math.min(r,g,b), d=max-min, h=0,s=0,v=max;
+  s = max===0?0:d/max;
+  if(d!==0){
+    switch(max){case r:h=(g-b)/d + (g<b?6:0);break;case g:h=(b-r)/d+2;break;case b:h=(r-g)/d+4;break;}
+    h/=6;
+  }
+  return {h:Math.round(h*360), s:Math.round(s*100), v:Math.round(v*100)};
+}
+function rgbToHsl(r,g,b){
+  r/=255;g/=255;b/=255;
+  let max=Math.max(r,g,b),min=Math.min(r,g,b),h,s,l=(max+min)/2;
+  if(max===min){h=s=0}else{
+    let d=max-min;
+    s=l>.5?d/(2-max-min):d/(max+min);
+    switch(max){case r:h=(g-b)/d+(g<b?6:0);break;case g:h=(b-r)/d+2;break;case b:h=(r-g)/d+4;break;}
+    h/=6;
+  }
+  return {h:Math.round(h*360), s:Math.round(s*100), l:Math.round(l*100)};
+}
+function rgbToCmyk(r,g,b){
+  if(r===0&&g===0&&b===0) return {c:0,m:0,y:0,k:100};
+  let c=1-r/255, m=1-g/255, y=1-b/255, k=Math.min(c,m,y);
+  c=(c-k)/(1-k); m=(m-k)/(1-k); y=(y-k)/(1-k);
+  return {c:Math.round(c*100), m:Math.round(m*100), y:Math.round(y*100), k:Math.round(k*100)};
+}
+function rgbToHex(r,g,b,a=1){
+  const toHex = n => n.toString(16).padStart(2,'0');
+  let hex = `#${toHex(r)}${toHex(g)}${toHex(b)}`.toUpperCase();
+  if(a<1) hex += toHex(Math.round(a*255)).toUpperCase();
+  return hex;
+}
+function hexToRgb(hex){
+  hex=hex.replace('#','').trim();
+  if(hex.length===3) hex=hex.split('').map(c=>c+c).join('');
+  if(hex.length===4) hex=hex.split('').map(c=>c+c).join(''); // rgba short
+  let r,g,b,a=1;
+  if(hex.length===6){ r=parseInt(hex.slice(0,2),16); g=parseInt(hex.slice(2,4),16); b=parseInt(hex.slice(4,6),16);}
+  else if(hex.length===8){ r=parseInt(hex.slice(0,2),16); g=parseInt(hex.slice(2,4),16); b=parseInt(hex.slice(4,6),16); a=parseInt(hex.slice(6,8),16)/255;}
+  else return null;
+  if([r,g,b].some(n=>isNaN(n))) return null;
+  return {r,g,b,a};
+}
+
+function updateFromHsv(){
+  const {r,g,b}=hsvToRgb(hsv.h,hsv.s,hsv.v);
+  const hex = rgbToHex(r,g,b,alpha);
+  renderAll(r,g,b,alpha,hex);
+}
+function renderAll(r,g,b,a,hex){
+  // update svBox hue background
+  const hueRgb = hsvToRgb(hsv.h,100,100);
+  svBox.style.background = `rgb(${hueRgb.r},${hueRgb.g},${hueRgb.b})`;
+  // cursor
+  const x = hsv.s/100 * svBox.clientWidth;
+  const y = (1 - hsv.v/100) * svBox.clientHeight;
+  svCursor.style.left = x+'px'; svCursor.style.top = y+'px';
+  // hue thumb
+  hueThumb.style.top = (hsv.h/360* hueSlider.clientHeight)+'px';
+  // alpha
+  alphaFill.style.background = `linear-gradient(to right, rgba(${r},${g},${b},0), rgb(${r},${g},${b}))`;
+  alphaThumb.style.left = (a*100)+'%';
+  alphaSlider.style.opacity = '1';
+
+  // big preview
+  bigFill.style.background = a<1 ? `rgba(${r},${g},${b},${a})` : `rgb(${r},${g},${b})`;
+  const textColor = (r*0.299 + g*0.587 + b*0.114) > 150 ? '#0d1117' : '#ffffff';
+  previewHex.style.color = textColor;
+  previewRgb.style.color = textColor;
+  previewHex.textContent = hex;
+  previewRgb.textContent = a<1 ? `rgba(${r}, ${g}, ${b}, ${a.toFixed(2)})` : `rgb(${r}, ${g}, ${b})`;
+  inputSwatch.style.background = `rgba(${r},${g},${b},${a})`;
+  hexInput.value = hex.replace('#','');
+  // validation hint
+  hexHint.textContent = a<1 ? `Alpha: ${Math.round(a*100)}% — 8-digit HEX includes opacity.` : `Supports #RGB, #RRGGBB and #RRGGBBAA.`;
+  hexHint.className='hint';
+
+  // formats
+  const hsl = rgbToHsl(r,g,b);
+  const hsv2 = rgbToHsv(r,g,b);
+  const cmyk = rgbToCmyk(r,g,b);
+  const items = [
+    {label:'HEX', value: hex, copy: hex},
+    {label:'HEX (no #)', value: hex.replace('#',''), copy: hex.replace('#','')},
+    {label:'RGB', value: `rgb(${r}, ${g}, ${b})`, copy:`rgb(${r}, ${g}, ${b})`},
+    {label:'RGBA', value: `rgba(${r}, ${g}, ${b}, ${a.toFixed(2)})`, copy:`rgba(${r}, ${g}, ${b}, ${a.toFixed(2)})`},
+    {label:'HSL', value: `hsl(${hsl.h}, ${hsl.s}%, ${hsl.l}%)`, copy:`hsl(${hsl.h}, ${hsl.s}%, ${hsl.l}%)`},
+    {label:'HSLA', value: `hsla(${hsl.h}, ${hsl.s}%, ${hsl.l}%, ${a.toFixed(2)})`, copy:`hsla(${hsl.h}, ${hsl.s}%, ${hsl.l}%, ${a.toFixed(2)})`},
+    {label:'HSV / HSB', value: `hsv(${hsv2.h}, ${hsv2.s}%, ${hsv2.v}%)`, copy:`hsv(${hsv2.h}, ${hsv2.s}%, ${hsv2.v}%)`},
+    {label:'CMYK', value: `cmyk(${cmyk.c}%, ${cmyk.m}%, ${cmyk.y}%, ${cmyk.k}%)`, copy:`cmyk(${cmyk.c}%, ${cmyk.m}%, ${cmyk.y}%, ${cmyk.k}%)`},
+    {label:'Decimal / Int', value: `${(r<<16)|(g<<8)|b}  (0x${hex.replace('#','').slice(0,6)})`, copy: `${(r<<16)|(g<<8)|b}`},
+    {label:'CSS — hex', value: `color: ${hex.slice(0,7).toLowerCase()};`, copy:`color: ${hex.slice(0,7).toLowerCase()};`},
+    {label:'CSS — rgb', value: `color: rgb(${r} ${g} ${b});`, copy:`color: rgb(${r} ${g} ${b});`},
+  ];
+  formatsEl.innerHTML = items.map(it=>`
+    <div class="format-row">
+      <div class="left"><span class="label">${it.label}</span><span class="value">${it.value}</span></div>
+      <button class="copy" data-copy="${it.copy.replace(/"/g,'&quot;')}" title="Copy ${it.label}">⧉</button>
+    </div>
+  `).join('');
+  formatsEl.querySelectorAll('.copy').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const v = btn.getAttribute('data-copy');
+      await copyText(v);
+      btn.classList.add('copied'); btn.textContent='✓';
+      setTimeout(()=>{btn.classList.remove('copied'); btn.textContent='⧉';},1200);
+    });
+  });
+
+  // palette & harmonies
+  buildPalette(r,g,b);
+  buildHarmonies(hsv);
+}
+
+function buildPalette(r,g,b){
+  // 10 tints/shades
+  const tints = [];
+  for(let i=0;i<10;i++){
+    const f = (i/9); // 0 dark -> 1 light via mix with white/black
+    // create scale from black to color to white? Simpler: interpolate lightness
+    const hsl = rgbToHsl(r,g,b);
+    const l = Math.round(10 + f*80); // 10% to 90%
+    // hsl to rgb for palette
+    const rgb = hslToRgb(hsl.h, hsl.s, l);
+    tints.push(rgb);
+  }
+  paletteEl.innerHTML = tints.map(c=>{
+    const hex = rgbToHex(c.r,c.g,c.b);
+    return `<button style="background:${hex}" data-hex="${hex}" title="${hex}"><span>${hex}</span></button>`;
+  }).join('');
+  paletteEl.querySelectorAll('button').forEach(btn=>{
+    btn.addEventListener('click',()=> applyHex(btn.dataset.hex));
+  });
+}
+function hslToRgb(h,s,l){
+  s/=100; l/=100;
+  let c=(1-Math.abs(2*l-1))*s, x=c*(1-Math.abs((h/60)%2-1)), m=l-c/2, r=0,g=0,b=0;
+  if(0<=h&&h<60){r=c;g=x;b=0}else if(60<=h&&h<120){r=x;g=c;b=0}else if(120<=h&&h<180){r=0;g=c;b=x}
+  else if(180<=h&&h<240){r=0;g=x;b=c}else if(240<=h&&h<300){r=x;g=0;b=c}else{r=c;g=0;b=x}
+  return {r:Math.round((r+m)*255), g:Math.round((g+m)*255), b:Math.round((b+m)*255)};
+}
+function buildHarmonies(hsvBase){
+  const make = (h) => hsvToRgb(((h%360)+360)%360, hsvBase.s, hsvBase.v);
+  const toBtn = c => {
+    const hex=rgbToHex(c.r,c.g,c.b);
+    return `<button style="background:${hex}" data-hex="${hex}" title="${hex}"></button>`;
+  };
+  $('#compSwatches').innerHTML = [make(hsvBase.h), make(hsvBase.h+180)].map(toBtn).join('');
+  $('#analogSwatches').innerHTML = [make(hsvBase.h-30), make(hsvBase.h), make(hsvBase.h+30)].map(toBtn).join('');
+  $('#triadicSwatches').innerHTML = [make(hsvBase.h), make(hsvBase.h+120), make(hsvBase.h+240)].map(toBtn).join('');
+  const shades = [];
+  for(let v of [30,55, hsvBase.v, 85, 100]) shades.push(hsvToRgb(hsvBase.h,hsvBase.s,v));
+  $('#shadeSwatches').innerHTML = shades.map(toBtn).join('');
+  document.querySelectorAll('.harmony-swatches button').forEach(b=> b.addEventListener('click',()=>applyHex(b.dataset.hex)));
+}
+
+async function copyText(t){
+  try{ await navigator.clipboard.writeText(t); showToast(`Copied ${t}`);}
+  catch{
+    const ta=document.createElement('textarea'); ta.value=t; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); showToast(`Copied ${t}`);
+  }
+}
+let toastTimer;
+function showToast(msg){
+  toastEl.textContent=msg; toastEl.classList.add('show');
+  clearTimeout(toastTimer); toastTimer=setTimeout(()=>toastEl.classList.remove('show'),1800);
+}
+function applyHex(hex){
+  const rgb = hexToRgb(hex);
+  if(!rgb) return;
+  hsv = rgbToHsv(rgb.r,rgb.g,rgb.b);
+  alpha = rgb.a ?? 1;
+  updateFromHsv();
+}
+
+// Input handling
+hexInput.addEventListener('input',()=>{
+  let raw = hexInput.value.trim();
+  if(!raw) return;
+  if(!raw.startsWith('#')) raw='#'+raw;
+  const rgb = hexToRgb(raw);
+  if(rgb){
+    hexField.style.borderColor='#2ea043';
+    hexHint.textContent='Valid colour — live preview updated.';
+    hexHint.className='hint';
+    hsv = rgbToHsv(rgb.r,rgb.g,rgb.b);
+    alpha = rgb.a ?? 1;
+    updateFromHsv();
+    hexField.style.borderColor='';
+  } else {
+    if(raw.length>=4) {
+      hexHint.textContent='Invalid hex — use 3, 6 or 8 hex digits (0-9, A-F).';
+      hexHint.className='hint error';
+      hexField.style.borderColor='#f85149';
+    }
+  }
+});
+hexInput.addEventListener('keydown', e=>{
+  if(e.key==='Enter'){
+    let raw='#'+hexInput.value.trim().replace(/^#/,'');
+    const rgb=hexToRgb(raw);
+    if(!rgb){ hexHint.textContent='Cannot apply — invalid hex.'; hexHint.className='hint error'; return; }
+    applyHex(raw);
+  }
+});
+
+// Drag SV
+let draggingSV=false, draggingHue=false, draggingAlpha=false;
+function getSVFromEvent(e){
+  const rect=svBox.getBoundingClientRect();
+  const x = (e.touches?e.touches[0].clientX:e.clientX) - rect.left;
+  const y = (e.touches?e.touches[0].clientY:e.clientY) - rect.top;
+  const s = Math.max(0,Math.min(100, x/rect.width*100));
+  const v = Math.max(0,Math.min(100, 100 - y/rect.height*100));
+  return {s:Math.round(s), v:Math.round(v)};
+}
+function getHueFromEvent(e){
+  const rect=hueSlider.getBoundingClientRect();
+  const y=(e.touches?e.touches[0].clientY:e.clientY)-rect.top;
+  return Math.max(0,Math.min(360, Math.round(y/rect.height*360)));
+}
+function getAlphaFromEvent(e){
+  const rect=alphaSlider.getBoundingClientRect();
+  const x=(e.touches?e.touches[0].clientX:e.clientX)-rect.left;
+  return Math.max(0,Math.min(1, x/rect.width));
+}
+svBox.addEventListener('pointerdown', e=>{ draggingSV=true; svBox.setPointerCapture(e.pointerId); const {s,v}=getSVFromEvent(e); hsv.s=s; hsv.v=v; updateFromHsv();});
+svBox.addEventListener('pointermove', e=>{ if(!draggingSV) return; const {s,v}=getSVFromEvent(e); hsv.s=s; hsv.v=v; updateFromHsv();});
+window.addEventListener('pointerup', ()=> draggingSV=false);
+
+hueSlider.addEventListener('pointerdown', e=>{ draggingHue=true; hueSlider.setPointerCapture(e.pointerId); hsv.h=getHueFromEvent(e); updateFromHsv();});
+hueSlider.addEventListener('pointermove', e=>{ if(!draggingHue) return; hsv.h=getHueFromEvent(e); updateFromHsv();});
+window.addEventListener('pointerup', ()=> draggingHue=false);
+
+alphaSlider.addEventListener('pointerdown', e=>{ draggingAlpha=true; alphaSlider.setPointerCapture(e.pointerId); alpha=getAlphaFromEvent(e); updateFromHsv();});
+alphaSlider.addEventListener('pointermove', e=>{ if(!draggingAlpha) return; alpha=getAlphaFromEvent(e); updateFromHsv();});
+window.addEventListener('pointerup', ()=> draggingAlpha=false);
+
+// Buttons
+$('#copyHexBtn').addEventListener('click', ()=> copyText(previewHex.textContent));
+$('#randomBtn').addEventListener('click', ()=>{
+  const r=Math.floor(Math.random()*256), g=Math.floor(Math.random()*256), b=Math.floor(Math.random()*256);
+  hsv=rgbToHsv(r,g,b); alpha=1; updateFromHsv();
+});
+$('#nativeBtn').addEventListener('click', ()=> $('#nativeColor').click());
+$('#nativeColor').addEventListener('input', e=> applyHex(e.target.value));
+$('#pickBtn').addEventListener('click', async ()=>{
+  if('EyeDropper' in window){
+    try{
+      const ed = new EyeDropper();
+      const res = await ed.open();
+      applyHex(res.sRGBHex);
+    }catch{}
+  } else {
+    showToast('EyeDropper not supported — use the gradient picker or type a hex.');
+  }
+});
+
+// init
+updateFromHsv();
+// keyboard: allow arrow nudges when focused on svBox
+svBox.tabIndex=0;
+svBox.addEventListener('keydown', e=>{
+  if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)){
+    e.preventDefault();
+    if(e.key==='ArrowUp') hsv.v=Math.min(100,hsv.v+1);
+    if(e.key==='ArrowDown') hsv.v=Math.max(0,hsv.v-1);
+    if(e.key==='ArrowRight') hsv.s=Math.min(100,hsv.s+1);
+    if(e.key==='ArrowLeft') hsv.s=Math.max(0,hsv.s-1);
+    updateFromHsv();
+  }
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,50 @@
+{
+  "name": "hex-analyser",
+  "version": "1.0.0",
+  "description": "Hex Code Analyser — gradient picker & converter, standalone desktop app",
+  "main": "main.js",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron .",
+    "build": "electron-builder --mac --win --linux",
+    "build:mac": "electron-builder --mac",
+    "pack": "electron-builder --dir"
+  },
+  "author": "",
+  "license": "MIT",
+  "build": {
+    "appId": "com.hexanalyser.app",
+    "productName": "Hex Analyser",
+    "files": [
+      "main.js",
+      "preload.js",
+      "index.html"
+    ],
+    "mac": {
+      "category": "public.app-category.graphics-design",
+      "target": [
+        "dmg",
+        "zip"
+      ]
+    },
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "linux": {
+      "target": [
+        "AppImage"
+      ]
+    },
+    "directories": {
+      "buildResources": "build"
+    }
+  },
+  "devDependencies": {
+    "electron": "^44.2.0",
+    "electron-builder": "^26.15.3"
+  }
+}
